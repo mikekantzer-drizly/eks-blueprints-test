@@ -42,6 +42,7 @@ module "eks_blueprints_kubernetes_addons" {
 
   # Add-ons
   enable_metrics_server                = true
+  enable_kubernetes_dashboard = true
   enable_cluster_autoscaler            = true
   enable_aws_load_balancer_controller  = true
   enable_prometheus                    = true
