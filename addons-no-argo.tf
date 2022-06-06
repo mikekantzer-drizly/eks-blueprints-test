@@ -26,40 +26,31 @@ module "eks_blueprints_kubernetes_addons" {
 
 
   # EKS Addons
-  enable_amazon_eks_vpc_cni = true
-  enable_amazon_eks_coredns = true
-  enable_amazon_eks_kube_proxy = true
+  enable_amazon_eks_vpc_cni            = true
+  enable_amazon_eks_coredns            = true
+  enable_amazon_eks_kube_proxy         = true
   enable_amazon_eks_aws_ebs_csi_driver = true
-  enable_ingress_nginx = true
-  ingress_nginx_helm_config = {
-    version = "4.0.17"
-    values  = [templatefile("${path.module}/helm_values/nginx_values.yaml", {})]
+
+  enable_aws_node_termination_handler = true
+  aws_node_termination_handler_helm_config = {
+    name       = "aws-node-termination-handler"
+    chart      = "aws-node-termination-handler"
+    repository = "https://aws.github.io/eks-charts"
+    version    = "0.16.0"
+    timeout    = "1200"
   }
 
-
+  # Add-ons
+  enable_metrics_server                = true
+  enable_cluster_autoscaler            = true
+  enable_aws_load_balancer_controller  = true
   enable_prometheus                    = true
   enable_amazon_prometheus             = true
   amazon_prometheus_workspace_endpoint = module.eks_blueprints.amazon_prometheus_workspace_endpoint
 
-  enable_aws_for_fluentbit = true
-  aws_for_fluentbit_helm_config = {
-    name                                      = "aws-for-fluent-bit"
-    chart                                     = "aws-for-fluent-bit"
-    repository                                = "https://aws.github.io/eks-charts"
-    version                                   = "0.1.16"
-    namespace                                 = "logging"
-    aws_for_fluent_bit_cw_log_group           = "/${module.eks_blueprints.eks_cluster_id}/worker-fluentbit-logs" # Optional
-    aws_for_fluentbit_cwlog_retention_in_days = 90
-    create_namespace                          = true
-    values = [templatefile("${path.module}/helm_values/aws-for-fluentbit-values.yaml", {
-      region                          = local.region
-      aws_for_fluent_bit_cw_log_group = "/${module.eks_blueprints.eks_cluster_id}/worker-fluentbit-logs"
-    })]
-    set = [
-      {
-        name  = "nodeSelector.kubernetes\\.io/os"
-        value = "linux"
-      }
-    ]
+  enable_ingress_nginx = true
+  ingress_nginx_helm_config = {
+    version = "4.0.17"
+    values  = [templatefile("${path.module}/helm_values/nginx_values.yaml", {})]
   }
 }

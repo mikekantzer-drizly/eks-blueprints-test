@@ -9,6 +9,15 @@ module "eks_blueprints" {
 
   enable_amazon_prometheus = true
 
+  cluster_enabled_log_types              = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+  cloudwatch_log_group_retention_in_days = 1
+
+  map_roles = [{
+    rolearn  = "arn:aws:sts::846469280661:assumed-role/AWSReservedSSO_AdministratorAccess_0a78d1eaacb79292"
+    username = "admin"
+    groups   = ["system:master"]
+  }]
+
   platform_teams = {
     admin = {
       users = [data.aws_caller_identity.current.arn]
@@ -60,8 +69,6 @@ module "eks_blueprints" {
       users         = [data.aws_caller_identity.current.arn]
     }
   }
-
-
 
   #----------------------------------------------------------------------------------------------------------#
   # Security groups used in this module created by the upstream modules terraform-aws-eks (https://github.com/terraform-aws-modules/terraform-aws-eks).
@@ -123,13 +130,53 @@ module "eks_blueprints" {
       subnet_ids           = module.vpc.private_subnets
       force_update_version = true
       disk_size            = 50
-      k8s_taints = [{key= "purpose", value="buildFleet", "effect"="NO_SCHEDULE"}]
+      k8s_taints           = [{ key = "purpose", value = "buildFleet", "effect" = "NO_SCHEDULE" }]
       k8s_labels = {
         "drizly/dedicated" = "buildFleet"
         "WorkerType"       = "ON_DEMAND"
       }
       additional_tags = {
         Name = "buildFleet"
+      }
+    }
+    bottlerocket_x86 = {
+      # 1> Node Group configuration - Part1
+      node_group_name        = "btl-x86"      # Max 40 characters for node group name
+      create_launch_template = true           # false will use the default launch template
+      launch_template_os     = "bottlerocket" # amazonlinux2eks or bottlerocket
+      public_ip              = false          # Use this to enable public IP for EC2 instances; only for public subnets used in launch templates ;
+      # 2> Node Group scaling configuration
+      desired_size    = 2
+      max_size        = 2
+      min_size        = 2
+      max_unavailable = 1 # or percentage = 20
+
+      # 3> Node Group compute configuration
+      ami_type       = "BOTTLEROCKET_x86_64" # AL2_x86_64, AL2_x86_64_GPU, AL2_ARM_64, CUSTOM, BOTTLEROCKET_ARM_64, BOTTLEROCKET_x86_64
+      capacity_type  = "ON_DEMAND"           # ON_DEMAND or SPOT
+      instance_types = ["m5.large"]          # List of instances used only for SPOT type
+      block_device_mappings = [
+        {
+          device_name = "/dev/xvda"
+          volume_type = "gp3"
+          volume_size = 100
+        }
+      ]
+
+      # 4> Node Group network configuration
+      subnet_ids = [] # Defaults to private subnet-ids used by EKS Controle plane. Define your private/public subnets list with comma separated subnet_ids  = ['subnet1','subnet2','subnet3']
+
+      k8s_taints = []
+
+      k8s_labels = {
+        Environment = "preprod"
+        Zone        = "dev"
+        WorkerType  = "ON_DEMAND"
+      }
+      additional_tags = {
+        ExtraTag    = "m5x-on-demand"
+        Name        = "m5x-on-demand"
+        subnet_type = "private"
       }
     }
   }
